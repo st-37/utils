@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+
+CONF_PATH="${ST37_CONF_PATH:=$HOME/.config/st37/st37-conf.json}"
+
+# Check that dependnecies are available
+st37-dep "jq"
+
+
+# Private: Creates the configuration file and all parent paths.
+#
+# Returns the current state of the configuration.
+create_conf() {
+    if [ ! -f "$CONF_PATH" ]; then
+        mkdir -p $(dirname "$CONF_PATH")
+        touch -a "$CONF_PATH"
+        echo "{}" > "$CONF_PATH"
+    fi
+}
+
+# Private: Get the current content of the configuration
+#
+# If the configuration does not exist, it will be created.
+#
+# Returns the current content of the configuration.
+get_conf() {
+    if [ ! -f "$CONF_PATH" ]; then
+        create_conf
+    fi
+
+    conf=$(<$CONF_PATH)
+    if [ -z "$conf" ]; then
+        echo "{}"
+    else
+        echo "$conf"
+    fi
+}
+
+# Private: Get a value from the configuration.
+#
+# $1 - The configuration query path to get the value of
+#
+# Examples
+#
+#   get_value "wallpaper.query"
+#
+# Returns the value at the given query path, or an empty string.
+get_value() {
+    value=$(get_conf | jq -MSr "$1")
+    if [ "$value" != "null" ]; then
+        echo "$value"
+    else
+        echo ""
+    fi
+}
+
+# Private: Set a value in the configuration as a raw value.
+#
+# Whatever value is passed in, the value will be saved as provided.
+# This will likely break if you don't wrap strings in additional quotes.
+#
+# $1 - The configuration query path to set the value at
+# $2 - The value to set as a raw value
+#
+# Examples
+#
+#   set_default "wallpaper.query" "1"
+#
+# Returns the current state of the configuration after the mutation.
+set_default() {
+    get_conf | jq -MSr "$1=$2" | tee "$CONF_PATH"
+}
+
+# Private: Set a value in the configuration as a string.
+#
+# Regardless of what is passed in, the value will be saved as a string
+# in the configuration. This is handled by wrapping the value in double quotes.
+#
+# $1 - The configuration query path to set the value at
+# $2 - The value to set as a string
+#
+# Examples
+#
+#   set_string "wallpaper.query" "minimal"
+#
+# Returns the current state of the configuration after the mutation.
+set_string() {
+    set_default "$1" "\"$2\""
+}
+
+# Private: Sets a value in the configuration.
+# 
+# Takes a given query path and a value to set within the configuration.
+# If the value provided _does not look_ like a number or a boolean, the
+# value will be set as a string in the configuration.
+# 
+# $1 - The configuration query path to set the value at
+# $2 - The value to set
+#
+# Examples
+#
+#   set_value "wallpaper.query" "minimal"
+# 
+# Returns the current state of the configuration after the mutation.
+set_value() {
+    numeric_pattern='^[-+]?[0-9]+([.][0-9]+)?$'
+    boolean_pattern='^true|false$'
+    if [[ "$2" =~ $numeric_pattern ]] || [[ "$2" =~ $boolean_pattern ]]; then
+        set_default "$1" "$2"
+    else
+        set_string "$1" "$2"
+    fi
+}
+
+# Private: Clears a value in the configuration.
+#
+# $1 - The configuration query path to clear
+#
+# Examples
+#
+#   clear_value "wallpaper.query"
+#
+# Returns the current state of the configuration after the mutation.
+clear_value() {
+    get_conf | jq -MSr "del($1)" | tee "$CONF_PATH"
+}
+
+
+# By default, if no option is provided, display the current configuration 
+if [ -z ${1+x} ]; then
+    get_conf
+    exit 0
+fi
+
+opt=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+if [ "$opt" == "create" ]; then
+    create_conf
+    get_conf
+elif [ "$opt" == "get" ]; then
+    get_value ".$2"
+elif [ "$opt" == "set" ]; then
+    if [ -z "$3" ]; then
+        echo "error: set '$2' requires a value"
+        exit 1
+    fi
+    set_value ".$2" "$3"
+elif [ "$opt" == "clear" ]; then
+    clear_value ".$2"
+else
+    echo "error: unknown option '$opt'"
+    exit 1
+fi
+

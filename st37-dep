@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Check that a given dependency is discoverable
+check_dep() {
+    if !(command -v "$1" > /dev/null 2>&1); then
+        echo "error: Missing dependency '$1'"
+        return 1
+    fi
+    return 0
+}
+
+missing=0
+for dep in "$@"; do
+    if !(check_dep "$dep"); then
+        missing=$((missing+1))
+    fi
+done
+
+if [ $missing -gt 0 ]; then
+    exit 1
+fi
+
