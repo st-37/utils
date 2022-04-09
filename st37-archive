@@ -1,14 +1,116 @@
 #!/usr/bin/env bash
 
+ST37_ARCHIVE_VERSION="1.0.0"
+ST37_HEADER_NAME="[st37].txt"
+ST37_MD5SUM_NAME="[st37].md5sums"
+ST37_MANIFEST_NAME="[st37].manifest.json"
+
 # Check that dependencies are available
-st37-dep "pv"
+st37-dep "pv" "jq"
 
+pushd() {
+    command pushd "$@" > /dev/null
+}
 
+popd() {
+    command popd "$@" > /dev/null
+}
+
+# Private: Creates the [st37].txt file in the current working directory.
+#
+# Returns nothing.
+create_st37() {
+    echo "
+         ██
+         ██
+  ▄██▀████████  ██▀▀█▄ █▄▄▄▄▄▄█▀
+ ██   ▀▀ ██   ███  ▀███     █▀
+ ▀█████▄ ██        ▄██     █▀
+ █▄   ██ ██      ▀▀██▄    █▀
+ ██████▀ ▀████      ██   █▀
+              ███  ▄█▀  █▀
+              █████▀  █▀
+
+[ st37 <st37@tuta.io> ]
+" > "$ST37_HEADER_NAME" 
+}
+
+# Private: Creates the [st37].md5sum file in the current working directory.
+#
+# Returns nothing.
+create_md5sums() {
+    find -type f \( -not -name "\[st37\]*" \) -exec md5sum '{}' \; > "$ST37_MD5SUM_NAME"
+}
+
+# Private: Creates the [st37].manifest.json file in the current working directory.
+#
+# $1 - The name of the archive
+# $2 - A short description of the archive
+# ${@:3} - Any extra arguments are used as keywords in the manifest
+#
+# Returns nothing.
 create_manifest() {
+    echo "{}" |
+        jq -MSr ".name=\"$1\"" |
+        jq -MSr ".description=\"$2\"" |
+        jq -MSr ".version=\"$ST37_ARCHIVE_VERSION\"" |
+        jq -MSr ".createdAt=\"$(date +"%Y-%m-%dT%H:%M:%SZ")\"" |
+        jq -MSr ".author=\"st37 <st37@tuta.io>\"" > "$ST37_MANIFEST_NAME"
     
+    if [ "$#" -gt 2 ]; then
+        keyword_index=0
+        for keyword in "${@:3}"; do
+            manifest=$(<$ST37_MANIFEST_NAME)
+            echo "$manifest" |
+                jq -MSr ".keywords[$keyword_index]=\"$keyword\"" > "$ST37_MANIFEST_NAME"
+            keyword_index=$((keyword_index+1))
+        done
+    fi
 }
 
-create_archive() {
+# Private: Creates an archive from the provided directory.
+#
+# Creates a tar-gzip archive from the contents of the provided directory.
+#
+# $1 - The directory to archive
+# $2 - The file to save the archive to (will be archived as a `.tar.gz`)
+#
+# Returns the written archive filepath. 
+archive_directory() {
+    if [ ! -d "$1" ]; then
+        echo "error: '$1' is not a directory"
+        exit 1
+    fi
+
+    if [ ! -f "$1/$ST37_MANIFEST_NAME" ]; then
+        echo "error: '$ST37_MANIFEST_NAME' does not exist in '$1'"
+        exit 1
+    fi
+
+    manifest=$(<$1/$ST37_MANIFEST_NAME)
+    echo "$manifest" |
+        jq -MSr ".archivedAt=\"$(date +"%Y-%m-%dT:%H:%M:%SZ")\"" > "$1/$ST37_MANIFEST_NAME"
+
     tar cf - "$1" -P | pv -s $(du -sb "$1" | awk '{print $1}') | gzip > "$2"
+    echo "$2"
 }
+
+
+if [ "$#" -lt 3 ]; then
+    echo "usage: $0 [directory] [name] [description] [...keywords]"
+    exit 1
+fi
+
+if ! [ -d "$1" ]; then
+    echo "error: '$1' is not a directory"
+    exit 1
+fi
+
+pushd "$1"
+create_st37
+create_manifest "$2" "$3" "${@:4}"
+create_md5sums
+popd
+
+archive_directory "$1" "${1%/}.tar.gz"
 
