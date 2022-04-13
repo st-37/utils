@@ -6,7 +6,9 @@ ST37_MD5SUM_NAME="[st37].md5sums"
 ST37_MANIFEST_NAME="[st37].manifest.json"
 
 # Check that dependencies are available
-st37-dep "pv" "jq"
+if !(st37-dep "pv" "jq"); then
+    exit 1
+fi
 
 pushd() {
     command pushd "$@" > /dev/null

@@ -3,7 +3,9 @@
 CONF_PATH="${ST37_CONF_PATH:=$HOME/.config/st37/st37-conf.json}"
 
 # Check that dependnecies are available
-st37-dep "jq"
+if !(st37-dep "jq"); then
+    exit 1
+fi
 
 
 # Private: Creates the configuration file and all parent paths.
