@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+VALID_MIMETYPE_PATTERN='^video|audio\/.*$'
+
+# Check that dependencies are available
+if !(st37-dep "file" "ffprobe"); then
+    exit 1
+fi
+
+# Private: Attempts to describe some content with ffprobe
+#
+# $1 - The content filepath to describe the metadata of
+#
+# Returns the writtent metadata filepath
+ffprobe_describe() {
+    output_filepath="${1%.*}.ffprobe.json"
+    ffprobe -v quiet -print_format json -show_data -show_format -show_streams -show_chapters "$1" > "$output_filepath"
+    echo "$output_filepath"
+}
+
+# Private: Check that a given filepath can be handled by ffprobe
+#
+# $1 - The filepath to check
+#
+# Returns 0 if the filepath can be handled by ffprobe, otherwise 1
+can_handle() {
+    file_output=$(file --mime-type "$1")
+    mimetype=${file_output##* }
+    if [[ "$mimetype" =~ $VALID_MIMETYPE_PATTERN ]]; then
+        return 0
+    fi
+    return 1
+}
+
+if [ ! -f "$1" ]; then
+    echo "error: '$1' is not a file"
+    exit 1
+fi
+
+if !(can_handle "$1"); then
+    echo "error: '$1' can not be handled by $0"
+    exit 1
+fi
+
+ffprobe_describe "$1"
+

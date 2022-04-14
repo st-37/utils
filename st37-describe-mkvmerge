@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+MKV_MIMETYPES=("video/x-matroska audio/x-matroska video/webm audio/webm")
+
+# Check that dependencies are available
+if !(st37-dep "file" "mkvmerge"); then
+    exit 1
+fi
+
+# Private: Describe the metadata of some content via mkvmerge
+#
+# $1 - The filepath of the mkv-formatted filepath
+#
+# Returns the written metadata filepath
+mkvmerge_describe() {
+    output_filepath="${1%.*}.mkvmerge.json"
+    mkvmerge --identification-format json --identify "$1" > "$output_filepath"
+    echo "$output_filepath"
+}
+
+# Private: Determine if the given filepath can be handled by mkvmerge
+#
+# $1 - The filepath to check
+#
+# Returns 0 if the filepath can be handled by mkvmerge, otherwise 1
+can_handle() {
+    file_output=$(file --mime-type "$1")
+    mimetype=${file_output##* }
+    if [[ " ${MKV_MIMETYPES[*]} " =~ " ${mimetype} " ]]; then
+        return 0
+    fi
+    return 1
+}
+
+if [ ! -f "$1" ]; then
+    echo "error: '$1' is not a file"
+    exit 1
+fi
+
+if !(can_handle "$1"); then
+    echo "error: '$1' can not be handled by $0"
+    exit 1
+fi
+
+mkvmerge_describe "$1"
+
