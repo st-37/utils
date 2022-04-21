@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+ST37_NOTIFY_DURATION=3000
+
+if !(st37-dep "st37-conf" "notify-send"); then
+    exit 1
+fi
+
+# Private: Disables notifications from being sent
+disable_notifications() {
+    st37-conf set notify.disabled true
+}
+
+# Private: Allows notifications to be sent
+enable_notifications() {
+    st37-conf clear notify.disabled
+}
+
+# Sends a notification to the notification service
+#
+# $1 - The title of the notification
+# $2 - The message of the notification
+# $3 - If 1, indicates the notification is an error
+#
+# Returns the state of the notification being sent 
+send_notification() {
+    disabled=$(st37-conf get notify.disabled)
+    if [ ! -z "$disabled" ]; then
+        exit 0
+    fi
+
+    duration=$(st37-conf get notify.duration)
+    if [ -z "$duration" ]; then
+        duration=$ST37_NOTIFY_DURATION
+    fi
+
+    urgency="normal"
+    if [ ! -z "$3" ] && [ $3 == 1 ]; then
+        urgency="critical"
+    fi
+    
+    notify-send "$1" --urgency "$urgency" --expire-time "$duration" -- "$2"
+}
+
+
+if [ "$#" -eq 1 ]; then
+    if [ "$1" == "-0" ]; then
+        disable_notifications > /dev/null
+    elif [ "$1" == "-1" ]; then
+        enable_notifications > /dev/null
+    else
+        echo "error: expected notificaiton title (or '-0' / '-1')"
+        exit 1
+    fi
+    exit 0
+fi
+
+if [ "$#" -lt 2 ]; then
+    echo "error: notify must include title and message"
+    exit 1
+fi
+
+send_notification "$@"
+

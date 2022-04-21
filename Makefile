@@ -4,7 +4,8 @@
 # By default, scripts will be installed to $HOME/.local/bin.
 # 
 
-ST37_SCRIPTS := st37-dep st37-conf st37-archive st37-describe-ffprobe st37-describe-mkvmerge
+ST37_SCRIPTS := st37-dep st37-conf st37-notify st37-wallpaper \
+				st37-archive st37-describe-ffprobe st37-describe-mkvmerge
 MAKEFLAGS += --silent
 
 ifeq ($(PREFIX),)

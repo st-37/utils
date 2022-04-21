@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+if !(st37-dep "st37-conf" "st37-notify" "feh"); then
+    exit 1
+fi
+
+# Private: Sets the given picture as the current background image
+#
+# $1 - The image filepath to use as the background
+#
+# Returns nothing
+set_wallpaper() {
+    feh --bg-fill "$1"
+    st37-notify "Wallpaper" "${1##*/}"
+}
+
+# Private: Sets a random picture (*.jpg|*.jpeg|*.png) in the provided directory
+#
+# $1 - The directory of pictures to use to select a random picture
+#
+# Returns nothing
+set_random_wallpaper() {
+    random=$(find "$1" -type f \( -iname \*.jpg -o -iname \*.jpeg -o -iname \*.png \) | shuf -n 1)
+    set_wallpaper "$random"
+}
+
+# Private: Refreshes the current wallpaper based on the wallpaper configuration
+#
+# Returns nothing
+refresh_wallpaper() {
+    default=$(st37-conf get wallpaper.default)
+    dir=$(st37-conf get wallpaper.dir)
+    if [ ! -z "$default" ]; then 
+        set_wallpaper "$default"
+    elif [ ! -z "$dir" ]; then
+        if [ ! -d "$dir" ]; then
+            st37-notify "Wallpaper Error" "'$dir' is not a directory" 1
+            exit 1
+        fi
+        set_random_wallpaper "$dir"
+    else
+        st37-notify "Wallpaper Error" "No wallpaper configuration is set" 1
+        exit 1
+    fi
+}
+
+refresh_wallpaper
+
