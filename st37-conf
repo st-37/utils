@@ -126,29 +126,39 @@ clear_value() {
     get_conf | jq -MSr "del($1)" | tee "$CONF_PATH"
 }
 
-
-# By default, if no option is provided, display the current configuration 
-if [ -z ${1+x} ]; then
-    get_conf
-    exit 0
-fi
-
-opt=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-if [ "$opt" == "create" ]; then
-    create_conf
-    get_conf
-elif [ "$opt" == "get" ]; then
-    get_value ".$2"
-elif [ "$opt" == "set" ]; then
-    if [ -z "$3" ]; then
-        echo "error: set '$2' requires a value"
-        exit 1
-    fi
-    set_value ".$2" "$3"
-elif [ "$opt" == "clear" ]; then
-    clear_value ".$2"
-else
-    echo "error: unknown option '$opt'"
+# Display usage text
+usage() {
+    name="${0##*/}"
+    echo "Usage:"
+    echo "  $name                Get current configuration."
+    echo "  $name <key>          Get configuration at the given key path."
+    echo "  $name <key> <value>  Set the configuration value at the given key path."
+    echo "  $name -c <key>       Clear the configuration at the given key path."
+    echo "  $name -h             Show this help text."
     exit 1
+}
+
+while getopts ":hc" opt; do
+    case "${opt}" in
+        h)
+            usage
+            ;;
+        c)
+            if [ ! "$#" -eq 2 ]; then
+                echo "error: -c requires a key to clear"
+                exit 1
+            fi
+            clear_value ".$2"
+            exit 0
+            ;;
+    esac
+done
+
+if [ "$#" -eq 2 ]; then
+    set_value ".$1" "$2"
+elif [ "$#" -eq 1 ]; then
+    get_value ".$1"
+else
+    get_conf
 fi
 

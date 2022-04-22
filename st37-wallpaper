@@ -28,18 +28,18 @@ set_random_wallpaper() {
 #
 # Returns nothing
 refresh_wallpaper() {
-    default=$(st37-conf get wallpaper.default)
-    dir=$(st37-conf get wallpaper.dir)
+    default=$(st37-conf wallpaper.default)
+    dir=$(st37-conf wallpaper.dir)
     if [ ! -z "$default" ]; then 
         set_wallpaper "$default"
     elif [ ! -z "$dir" ]; then
         if [ ! -d "$dir" ]; then
-            st37-notify "Wallpaper Error" "'$dir' is not a directory" 1
+            st37-notify -e "Wallpaper Error" "'$dir' is not a directory"
             exit 1
         fi
         set_random_wallpaper "$dir"
     else
-        st37-notify "Wallpaper Error" "No wallpaper configuration is set" 1
+        st37-notify -e "Wallpaper Error" "No wallpaper configuration is set"
         exit 1
     fi
 }

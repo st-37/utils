@@ -8,12 +8,12 @@ fi
 
 # Private: Disables notifications from being sent
 disable_notifications() {
-    st37-conf set notify.disabled true
+    st37-conf notify.disabled true
 }
 
 # Private: Allows notifications to be sent
 enable_notifications() {
-    st37-conf clear notify.disabled
+    st37-conf -c notify.disabled
 }
 
 # Sends a notification to the notification service
@@ -24,12 +24,12 @@ enable_notifications() {
 #
 # Returns the state of the notification being sent 
 send_notification() {
-    disabled=$(st37-conf get notify.disabled)
+    disabled=$(st37-conf notify.disabled)
     if [ ! -z "$disabled" ]; then
         exit 0
     fi
 
-    duration=$(st37-conf get notify.duration)
+    duration=$(st37-conf notify.duration)
     if [ -z "$duration" ]; then
         duration=$ST37_NOTIFY_DURATION
     fi
@@ -42,23 +42,47 @@ send_notification() {
     notify-send "$1" --urgency "$urgency" --expire-time "$duration" -- "$2"
 }
 
-
-if [ "$#" -eq 1 ]; then
-    if [ "$1" == "-0" ]; then
-        disable_notifications > /dev/null
-    elif [ "$1" == "-1" ]; then
-        enable_notifications > /dev/null
-    else
-        echo "error: expected notificaiton title (or '-0' / '-1')"
-        exit 1
-    fi
-    exit 0
-fi
-
-if [ "$#" -lt 2 ]; then
-    echo "error: notify must include title and message"
+# Display usage text
+usage() {
+    name="${0##*/}"
+    echo "Usage:"
+    echo "  $name [-e] <title> <message>  Display a notification."
+    echo "  $name -0                      Disable notifications."
+    echo "  $name -1                      Enable notifications."
+    echo "  $name -h                      Display this help text."
     exit 1
+}
+
+is_error=0
+while getopts ":h01e" opt; do
+    case "${opt}" in
+        h)
+            usage
+            ;;
+        0)
+            disable_notifications > /dev/null
+            exit 0
+            ;;
+        1)
+            enable_notifications > /dev/null
+            exit 0
+            ;;
+        e)
+            is_error=1
+            ;;
+    esac
+done
+
+title="$1"
+message="$2"
+if [ "$#" -ne 2 ]; then
+    if [ "$#" -eq 3 ] && [ $is_error == 1 ]; then
+        title="$2"
+        message="$3"
+    else
+        usage
+    fi
 fi
 
-send_notification "$@"
+send_notification "$title" "$message" "$is_error"
 
